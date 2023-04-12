@@ -1,0 +1,19 @@
+#!/bin/bash
+# mount encrypted home and pool
+# pw needs to be given on stdin
+
+read key
+
+# needs to be configured
+USER=ulno
+DEVICE_HOME=37fc7195-5130-4503-88e4-12bd0b7d7c67
+
+# (
+	# zpool import poolbig
+	# echo "$key" | zfs load-key poolbig/data0
+	# zfs mount poolbig/data0
+# ) &
+
+echo -n "$key" | cryptsetup luksOpen "UUID=$DEVICE_HOME" home -d - \
+  && fsck -y /dev/mapper/home \
+  && mount -o compress=lzo /dev/mapper/home "/home/$USER"

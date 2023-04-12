@@ -1,0 +1,60 @@
+#!/bin/bash
+# try mount home, should be sourced
+# adjusted to run as different user (remote)
+
+TIMEOUT=60
+USER=ulno
+
+while ! mount|grep "/home/$USER"; do
+  msg="Enter password to unlock drive"
+  if [[ "$DISPLAY" ]]; then
+    # gui possible
+# not necessary if different user
+#    # .Xauthority file needs to be in home directory to have access to the X session
+#    cp -a ~/.Xauthority "/tmp/.xx.$USER"
+
+    # Enable mouse cursor in X without WM
+    # https://github.com/johnlane/xplane-utils/blob/master/doc/OneMansWayToConfigureXPlane.md#mouse-cursor
+    if [ -e /usr/bin/xsetroot ]; then
+      xsetroot -cursor_name left_ptr
+    fi
+    xset dpms 30 30 30
+    xdotool mousemove 960 700
+    pw=$(yad --timeout $TIMEOUT --undecorated --form --field \
+      "$msg":LBL \
+      --field=:H|\
+    cut -b2-|rev|cut -b2-|rev)
+  else
+    # use terminal
+    echo "$msg"
+    #pw=$(timeout $TIMEOUT /usr/local/bin/ask_password -s "Password")
+    pw=$("$HOME/bin/ask_password" -t $TIMEOUT -s "Password")
+    
+    echo done
+  fi
+  if [[ "$pw" ]]; then
+    if [[ "$DISPLAY" ]]; then
+      (echo -n "$pw" | sudo /usr/local/sbin/cryptsetup_home; sleep 1;  pkill yad)| yad --width 800 --height 300 --text-info --no-buttons
+    else
+      echo -n "$pw" | sudo /usr/local/sbin/cryptsetup_home
+    fi
+    # Make sure device is decrypted
+    sleep .1
+    # Make working directory the newly mounted home directory
+    cd
+  fi
+  sleep 1
+#  if [[ "$DISPLAY" ]]; then
+#    # Restore .Xauthority
+#    mv "/tmp/.xx.$USER" ~/.Xauthority
+#  fi
+done
+
+if [[ "$DISPLAY" ]]; then
+  #loginctl terminate-user "$USER"
+#  xfce4-session-logout -l
+  qdbus org.kde.ksmserver /KSMServer logout 0 0 0
+else
+#  logout
+	exit
+fi
